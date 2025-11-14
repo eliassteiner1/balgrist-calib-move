@@ -8,6 +8,7 @@ import scipy.stats
 
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
+from   plotly.subplots import make_subplots
 
 
 
@@ -215,14 +216,152 @@ def plot_results(hs):
         showarrow = False
         
     )
-    
-    
-    
-    
+
     fig.show()
     
     
     
+def plot_results_multi(hs):
+    
+    x_steps = np.arange(hs.shape[0])
+    abs_data = np.sqrt(hs[:, 0, 2]**2 + hs[:, 1, 2]**2)
+    
+    TXTCOL = "rgba(20, 20, 20, 1.0)"
+
+    BKGCOL = "rgba(255, 255, 255, 0.0)"
+    
+    LINCOL = "rgba(255, 0, 0, 0.3)"
+    MRKCOL = "rgba(255, 0, 0, 1.0)"
+    
+    GRDCOL = "rgba(200, 200, 200, 1.0)"
+    ZRLCOL = GRDCOL
+    GRDWIDTH = 2.0
+    ZRLWIDTH = 5.0
+    
+    fig = make_subplots(
+        rows=1, cols=2, 
+        column_widths = [0.8, 0.2], horizontal_spacing = 0.04,
+        shared_xaxes=False, shared_yaxes=False)
+    
+    fig.add_trace(go.Scatter( # main plot
+        x = x_steps,
+        y = abs_data,
+        mode = "lines+markers",
+        line = dict(color = LINCOL, width = 3, dash = "dot"),
+        marker = dict(color = MRKCOL, symbol = "square", size = 8),
+    ), row = 1, col = 1)
+    
+    fig.add_trace(go.Scatter( # cosmetic bar
+        x = [x_steps.max(), x_steps.max()],
+        y = [-0.1*abs_data.max(), 1.2*abs_data.max()],
+        mode = "lines",
+        line = dict(color = ZRLCOL, width = ZRLWIDTH),
+        zorder = -1
+    ), row = 1, col = 1)
+    
+    fig.add_trace(go.Scatter( # point scatter x-y
+        x = hs[:, 0, 2],
+        y = hs[:, 1, 2],
+        mode = "markers",
+        marker = dict(color = MRKCOL, symbol = "circle", size = 3),
+    ), row = 1, col = 2)
+    
+    fig.add_shape(row = 1, col = 2,
+        type = "circle", 
+        x0 = -abs_data.max(), y0 = -abs_data.max(),
+        x1 =  abs_data.max(), y1 =  abs_data.max(),
+        layer = "below",
+        line = dict(color = GRDCOL, width = GRDWIDTH)  
+    )
+    fig.add_shape(row = 1, col = 2,
+        type = "circle", 
+        x0 = -abs_data.max()/2, y0 = -abs_data.max()/2,
+        x1 =  abs_data.max()/2, y1 =  abs_data.max()/2,
+        layer = "below",
+        line = dict(color = GRDCOL, width = GRDWIDTH)
+        
+    )
+    
+    # subplot 1 ----------------------------------------------------------------
+    fig.update_xaxes( row = 1, col = 1,
+        range = [-0.04*x_steps.max(), 1.04*x_steps.max()],
+        showgrid = True,
+        zeroline = True,
+        gridcolor = GRDCOL,
+        zerolinecolor = ZRLCOL,
+        gridwidth = GRDWIDTH,
+        zerolinewidth = ZRLWIDTH,
+        tickvals = np.linspace(x_steps.min(), x_steps.max(), 6),
+        ticktext = ["00:00:00", "00:01:00", "00:02:00", "00:03:00", "00:04:00", "00:05:00"],
+    )
+    
+    fig.update_yaxes(row = 1, col = 1,
+        range = [-0.1*abs_data.max(), 1.1*abs_data.max()],
+        showgrid = True,
+        zeroline = True,
+        gridcolor = GRDCOL,
+        zerolinecolor = ZRLCOL,
+        gridwidth = GRDWIDTH,
+        zerolinewidth = ZRLWIDTH,
+        tickformat = ".2~s",
+        tickvals = np.linspace(0, abs_data.max(), 4), 
+    )
+    
+    # subplot 2 ----------------------------------------------------------------
+    fig.update_xaxes(row = 1, col = 2,
+        range = [-1.1*abs_data.max(), 1.1*abs_data.max()],
+        constrain = "domain",
+        scaleanchor = "y2", # watch out, needs the y axis from the second plot as scaleanchor!
+        showgrid = False,
+        zeroline = True,
+        gridcolor = GRDCOL,
+        zerolinecolor = ZRLCOL,
+        gridwidth = GRDWIDTH,
+        zerolinewidth = ZRLWIDTH,
+        showticklabels = False,
+    )
+    
+    fig.update_yaxes(row = 1, col = 2,
+        range = [-1.1*abs_data.max(), 1.1*abs_data.max()],
+        constrain = "domain",
+        showgrid = False,
+        zeroline = True,
+        gridcolor = GRDCOL,
+        zerolinecolor = ZRLCOL,
+        gridwidth = GRDWIDTH,
+        zerolinewidth = ZRLWIDTH,
+        showticklabels = False,
+    )
+    
+    
+    
+    
+    # general layout -----------------------------------------------------------
+    fig.update_layout(
+        title = dict(
+            text = "plot for: <b>vid_xxx_asdfasdfdasf_asdfasdfdsa_000092345_éélkjélkjélkj_asdfasfdasf-asdfas.mp4</b>", 
+            x = 0.015, y = 0.92, xref = "container", yref = "container", xanchor = "left", yanchor="top",
+            font_size = 20),
+        paper_bgcolor = BKGCOL,
+        plot_bgcolor = BKGCOL,
+        font = dict(family = "JetBrains Mono", size = 16, color = TXTCOL),
+        width = 1200,
+        height = 300,
+        margin = dict(l = 80+20, r = 20, t = 45+20, b = 20, pad = 5),
+        showlegend = False
+    )
+    
+    fig.add_annotation(
+        text = "<b>absolute movem. [px]</b>", font_size = 16, textangle = -90,
+        x = -0.08, y = 0.5, xref = "paper", yref = "paper", xanchor = "left", yanchor="middle",
+        showarrow = False,
+    )
+
+    fig.show()  
+    
+
+
+
 
 
 
@@ -243,7 +382,7 @@ def main_func(argv=None):
     hs = process_one_video(cli_args.input_video_path, detector, matcher)
     
     # plot
-    plot_results(hs)
+    plot_results_multi(hs)
     
     # save results
     
