@@ -1,267 +1,26 @@
 import os
-import re
-from   dataclasses import dataclass
-import numpy as np
-import tyro
-from   numpy.typing import NDArray
-from   tqdm import tqdm as tqdm_bar
-import cv2 as cv
-import scipy.stats
 
+import numpy as np
+from   numpy.typing import NDArray
+import cv2 as cv
+import tyro
+from   tqdm import tqdm as tqdm_bar
+import scipy.stats
 import plotly.graph_objects as go
 from   plotly.subplots import make_subplots
 
+from   .core.config import CLIArgs
+from   .core.config import VidStats
+from   .core.plotting import plot_results
 
-
-@dataclass
-class CLIArgs:
-    """
-    controls the cli of tyro and directly stores the input arguments (sys.argv)
-    
-    Attributes:
-        input_video_path: path to the video that should be analyzed
-        static_sequence: either START / END / maybe also something like(00:00:10 - 00:00:20)
-
-    """
-    input_video_path: str
-    static_sequence: str
-
-
-def calc_median_image(img_list: list[NDArray]) -> NDArray:
-    
-    img_stack = np.array(img_list)
-    median_image = np.median(img_stack, axis=0).astype(np.uint8)
-    return median_image
-
-def calc_mode_image(img_list: list[NDArray]) -> NDArray:
-    
-    img_stack = np.array(img_list)
-    mode_image = scipy.stats.mode(img_stack, axis=0)[0].astype(np.uint8)
-    return mode_image
-
-def calc_kde_image(img_list: list[NDArray]) -> NDArray:
-    
-    desired_n_px_for_kde = 1e6
-    bandwidth = 10
-    
-    # compress image if too large
-    H, W = img_list[0].shape # store for reverting compression
-    scale_factor = np.sqrt(desired_n_px_for_kde / (H*W)) # compress by this factor to not exceed memory!
-    if scale_factor < 1:
-        img_list = [cv.resize(img, None, fx=scale_factor, fy=scale_factor) for img in img_list]
-    
-    img_stack = np.array(img_list)
-    img_stack_compr = (img_stack / 2).astype(np.uint8) # compress color channels
-
-    # prepare kde kernels
-    gray_vals = np.arange(128, dtype=np.int8) # need singed ints here for computing the kernels
-    dist = np.abs(gray_vals[:, None] - gray_vals[None, :])  # (256, 256) pairwise distances between all gray values
-    kernel_mtx = np.clip(bandwidth - dist, 0, None).astype(np.uint8) # Apply triangle kernel: (h - |i-j|), clipped at 0
-
-    # do kde
-    queried_kernels = kernel_mtx[img_stack_compr, :] # n, H, W, 128
-    density = np.sum(queried_kernels, axis=0) # add kernels over the stack dimension -> color density at each pixel
-    kde_image = (np.argmax(density, axis=-1) * 2).astype(np.uint8) # find the most "dense" color val for each pixel
-
-    # upscale again if image was too large
-    if scale_factor < 1:
-        kde_image = cv.resize(kde_image, (W, H), interpolation=cv.INTER_CUBIC)
-        
-    # slightly smoothen image
-    kde_image = cv.GaussianBlur(kde_image, (11, 11), 0)
-
-    return kde_image
-
-def generate_pivot_frame():
-    # should grab frames at some interval from the static part of the video (either start end or some window)
-    # maybe some params like, how many frames, which type of combination method
-    # combines them all into a pivot frame (using specified method)
-
-    pass
-
-def sec_2_tstr(seconds: float) -> str:
-    hrs = round(seconds // 3600)
-    min = round((seconds % 3600) // 60)
-    sec = round(seconds % 60)
-
-    return f"{hrs:02d}:{min:02d}:{sec:02d}"
-    
-def tstr_2_sec(timestr: str) -> int:
-    substr = re.findall(r"\d\d:\d\d:\d\d", timestr)[0]
-    hrs, min, sec = substr.split(":")
-    seconds = int(hrs)*3600 + int(min)*60 + int(sec)
-    
-    return seconds
-       
-def fig_2_numpy(figure: go.Figure) -> NDArray:
-    fig_bytes = figure.to_image(format="png")
-    img_bytes = np.frombuffer(fig_bytes, np.uint8)
-    img = cv.imdecode(img_bytes, cv.IMREAD_UNCHANGED)
-    
-    return img
+from   .util.timestring import tstr_2_sec
+from   .util.timestring import sec_2_tstr
+from   .util.imgblending import calc_median_image
+from   .util.imgblending import calc_mode_image
+from   .util.imgblending import calc_kde_image
 
 
 
-def plot_results(hs, ftot, fpsc, vidname, static_window: tuple[str, str]):
-    
-    flor_for_max_y_range = 50 # controlling how low the range of the y axis can go when automatically adjusting range
-    
-    t_steps = np.linspace(0, ftot/fpsc, hs.shape[0]) # x axis is in seconds, assuming hs is at regular intervals + full!
-    abs_data = np.sqrt(hs[:, 0, 2]**2 + hs[:, 1, 2]**2)
-    abs_max = max(abs_data.max(), flor_for_max_y_range)
-    
-    TXTCOL = "rgba(20, 20, 20, 1.0)"
-
-    BKGCOL = "rgba(255, 255, 255, 0.0)"
-    
-    LINCOL = "rgba(255, 0, 0, 0.3)"
-    MRKCOL = "rgba(255, 0, 0, 1.0)"
-    
-    GRDCOL = "rgba(200, 200, 200, 1.0)"
-    ZRLCOL = GRDCOL
-    GRDWIDTH = 2.0
-    ZRLWIDTH = 5.0
-    
-    fig = make_subplots(
-        rows=1, cols=2, 
-        column_widths = [0.78, 0.22], horizontal_spacing = 0.12,
-        shared_xaxes=False, shared_yaxes=False)
-    
-    fig.add_trace(go.Scatter( # main plot
-        x = t_steps,
-        y = abs_data,
-        mode = "lines+markers",
-        line = dict(color = LINCOL, width = 3, dash = "dot"),
-        marker = dict(color = MRKCOL, symbol = "square", size = 8),
-    ), row = 1, col = 1)
-    
-    fig.add_trace(go.Scatter( # cosmetic bar
-        x = [t_steps.max(), t_steps.max()],
-        y = [-0.1*abs_max, 1.2*abs_max],
-        mode = "lines",
-        line = dict(color = ZRLCOL, width = ZRLWIDTH),
-        zorder = -1
-    ), row = 1, col = 1)
-    
-    fig.add_shape(row = 1, col = 1, # static window box
-        type = "rect",
-        x0 = tstr_2_sec(static_window[0]), y0 = -0.05*abs_max,
-        x1 = tstr_2_sec(static_window[1]), y1 = 1.05*abs_max,
-        layer = "below",
-        line = dict(width = 0),
-        fillcolor = "rgba(144, 213, 255, 0.33)"
-        
-    )
-    
-    fig.add_trace(go.Scatter( # point scatter x-y
-        x = hs[:, 0, 2],
-        y = hs[:, 1, 2],
-        mode = "markers",
-        marker = dict(color = MRKCOL, symbol = "circle", size = 3),
-    ), row = 1, col = 2)
-    
-    fig.add_shape(row = 1, col = 2, # outer circle
-        type = "circle", 
-        x0 = -abs_max, y0 = -abs_max,
-        x1 =  abs_max, y1 =  abs_max,
-        layer = "below",
-        line = dict(color = GRDCOL, width = GRDWIDTH)  
-    )
-    
-    fig.add_shape(row = 1, col = 2, # inner circle
-        type = "circle", 
-        x0 = -abs_max/2, y0 = -abs_max/2,
-        x1 =  abs_max/2, y1 =  abs_max/2,
-        layer = "below",
-        line = dict(color = GRDCOL, width = GRDWIDTH)
-        
-    )
-    
-    # subplot 1 ----------------------------------------------------------------
-    n_tix = 6
-    fig.update_xaxes( row = 1, col = 1,
-        range = [-0.04*t_steps.max(), 1.04*t_steps.max()],
-        showgrid = True,
-        zeroline = True,
-        gridcolor = GRDCOL,
-        zerolinecolor = ZRLCOL,
-        gridwidth = GRDWIDTH,
-        zerolinewidth = ZRLWIDTH,
-        tickvals = np.linspace(t_steps.min(), t_steps.max(), n_tix),
-        ticktext = [sec_2_tstr(s) for s in np.linspace(0, ftot/fpsc, n_tix)],
-    )
-    
-    fig.update_yaxes(row = 1, col = 1,
-        range = [-0.1*abs_max, 1.1*abs_max],
-        showgrid = True,
-        zeroline = True,
-        gridcolor = GRDCOL,
-        zerolinecolor = ZRLCOL,
-        gridwidth = GRDWIDTH,
-        zerolinewidth = ZRLWIDTH,
-        tickformat = ".1~s",
-        tickvals = np.linspace(0, abs_max, 4), 
-    )
-    
-    # subplot 2 ----------------------------------------------------------------
-    fig.update_xaxes(row = 1, col = 2,
-        range = [-1.1*abs_max, 1.1*abs_max],
-        constrain = "domain",
-        scaleanchor = "y2", # watch out, needs the y axis from the second plot as scaleanchor!
-        showgrid = False,
-        zeroline = True,
-        gridcolor = GRDCOL,
-        zerolinecolor = ZRLCOL,
-        gridwidth = GRDWIDTH,
-        zerolinewidth = ZRLWIDTH,
-        tickformat = ".1~s",
-        tickvals = np.linspace(-abs_max, abs_max, 3)
-    )
-    
-    fig.update_yaxes(row = 1, col = 2,
-        range = [-1.1*abs_max, 1.1*abs_max],
-        constrain = "domain",
-        showgrid = False,
-        zeroline = True,
-        gridcolor = GRDCOL,
-        zerolinecolor = ZRLCOL,
-        gridwidth = GRDWIDTH,
-        zerolinewidth = ZRLWIDTH,
-        tickformat = ".1~s",
-        tickvals = np.linspace(-abs_max, abs_max, 5)
-    )
-    
-    # general layout -----------------------------------------------------------
-    fig.update_layout(
-        title = dict(
-            text = f"plot for: <b>{vidname}</b>", 
-            x = 0.015, y = 0.92, xref = "container", yref = "container", xanchor = "left", yanchor="top",
-            font_size = 20),
-        paper_bgcolor = BKGCOL,
-        plot_bgcolor = BKGCOL,
-        font = dict(family = "JetBrains Mono", size = 16, color = TXTCOL),
-        width = 1200,
-        height = 300,
-        margin = dict(l = 70+20, r = 20, t = 45+20, b = 20, pad = 5),
-        showlegend = False
-    )
-    
-    fig.add_annotation(
-        text = "<b>|x, y| movement [px]</b>", font_size = 16, textangle = -90,
-        x = -0.07, y = 0.5, xref = "paper", yref = "paper", xanchor = "left", yanchor="middle",
-        showarrow = False,
-    )
-    
-    fig.add_annotation(
-        text = "<b> (x, y) movement [px]</b>", font_size = 16, textangle = -90,
-        x = 0.74, y = 0.5, xref = "paper", yref = "paper", xanchor = "left", yanchor="middle",
-        showarrow = False,
-    )
-    
-    fig.show() # only for debug
-    
-    return fig_2_numpy(fig) 
-    
 def process_one_video(vid_path, detector, matcher):
     
     # get some video information
@@ -329,11 +88,6 @@ def process_one_video(vid_path, detector, matcher):
     
     return plot_img
     
-
-   
-
-
-
 
 
 

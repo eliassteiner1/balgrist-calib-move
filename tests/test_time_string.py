@@ -2,8 +2,7 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from calib_move.main import sec_2_tstr
-from calib_move.main import tstr_2_sec
+from calib_move.util.timestring import sec_2_tstr, tstr_2_sec
 
 if __name__ == "__main__":
     os.system("cls" if os.name == "nt" else "clear")
