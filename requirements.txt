@@ -2,5 +2,8 @@ numpy
 tyro
 tqdm
 cv2
+scipy
+plotly
+kaleido
 
 

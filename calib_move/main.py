@@ -1,3 +1,5 @@
+import os
+import re
 from   dataclasses import dataclass
 import numpy as np
 import tyro
@@ -7,7 +9,6 @@ import cv2 as cv
 import scipy.stats
 
 import plotly.graph_objects as go
-import matplotlib.pyplot as plt
 from   plotly.subplots import make_subplots
 
 
@@ -78,73 +79,36 @@ def generate_pivot_frame():
 
     pass
 
+def sec_2_tstr(seconds: float) -> str:
+    hrs = round(seconds // 3600)
+    min = round((seconds % 3600) // 60)
+    sec = round(seconds % 60)
+
+    return f"{hrs:02d}:{min:02d}:{sec:02d}"
+    
+def tstr_2_sec(timestr: str) -> int:
+    substr = re.findall(r"\d\d:\d\d:\d\d", timestr)[0]
+    hrs, min, sec = substr.split(":")
+    seconds = int(hrs)*3600 + int(min)*60 + int(sec)
+    
+    return seconds
+       
+def fig_2_numpy(figure: go.Figure) -> NDArray:
+    fig_bytes = figure.to_image(format="png")
+    img_bytes = np.frombuffer(fig_bytes, np.uint8)
+    img = cv.imdecode(img_bytes, cv.IMREAD_UNCHANGED)
+    
+    return img
 
 
-def process_one_video(vid_path, detector, matcher):
-    
-    # get some video information
-    cap = cv.VideoCapture(vid_path)
-    fpsc = cap.get(cv.CAP_PROP_FPS)
-    ftot = cap.get(cv.CAP_PROP_FRAME_COUNT)
-    
-    # gather and calculate init frame (extract + blend)
-    n_init_frames = 10
-    l_init_seq = 0.05 # percent of video
-    init_frame_idx = np.linspace(0, l_init_seq*ftot, n_init_frames, dtype=np.int64)
-    init_frame_list = []
 
-    for fidx in tqdm_bar(init_frame_idx, desc="constructing pivot frame", unit_scale=True):
-        cap.set(cv.CAP_PROP_POS_FRAMES, fidx)
-        ret, img = cap.read()
-        if ret is False:
-            raise ValueError("could not read frame") #TODO add some info here
-        else:
-            init_frame_list.append(cv.cvtColor(img, cv.COLOR_BGR2GRAY))    
-    pivot_frame = calc_median_image(init_frame_list)
+def plot_results(hs, ftot, fpsc, vidname, static_window: tuple[str, str]):
     
-    # do detection on initial frame
-    pivot_kps, pivot_dsc = detector.detectAndCompute(pivot_frame, None)
-        
-    # store homographies
-    homographies = []
-
-    # step through main video, for each interval frame
-    n_main_steps = 10
-    frame_idx = np.linspace(0, ftot-1, n_main_steps, dtype=np.int64)
-    for fidx in tqdm_bar(frame_idx, desc="stepping through video  ", unit_scale=True):
+    flor_for_max_y_range = 50 # controlling how low the range of the y axis can go when automatically adjusting range
     
-        # grab frame and do keypoint detection
-        cap.set(cv.CAP_PROP_POS_FRAMES, fidx)
-        ret, img = cap.read()
-        if ret is False:
-            raise ValueError("could not read frame") #TODO add some info here
-        else:
-            img_gry = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-            kps_new, dsc_new = detector.detectAndCompute(img_gry, None)
-            
-            # do keypoint matching
-            matches = matcher.match(pivot_dsc, dsc_new)
-            matches = sorted(matches, key=lambda x: x.distance)
-            
-            # get actual coords of keypoints
-            pivot_p = np.float32([pivot_kps[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
-            p_new = np.float32([kps_new[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
-
-            # estimate homography w.r.t. init frame and store
-            H, mask = cv.findHomography(pivot_p, p_new, cv.RANSAC, 5)
-            homographies.append(H)
-            
-    # extract homography stats
-    hs = np.array(homographies)
-    
-    return hs
-   
-def plot_results_multi(hs):
-    
-    minimal_maximum = 50
-    x_steps = np.arange(hs.shape[0])
+    t_steps = np.linspace(0, ftot/fpsc, hs.shape[0]) # x axis is in seconds, assuming hs is at regular intervals + full!
     abs_data = np.sqrt(hs[:, 0, 2]**2 + hs[:, 1, 2]**2)
-    abs_max = max(abs_data.max(), minimal_maximum)
+    abs_max = max(abs_data.max(), flor_for_max_y_range)
     
     TXTCOL = "rgba(20, 20, 20, 1.0)"
 
@@ -164,7 +128,7 @@ def plot_results_multi(hs):
         shared_xaxes=False, shared_yaxes=False)
     
     fig.add_trace(go.Scatter( # main plot
-        x = x_steps,
+        x = t_steps,
         y = abs_data,
         mode = "lines+markers",
         line = dict(color = LINCOL, width = 3, dash = "dot"),
@@ -172,12 +136,22 @@ def plot_results_multi(hs):
     ), row = 1, col = 1)
     
     fig.add_trace(go.Scatter( # cosmetic bar
-        x = [x_steps.max(), x_steps.max()],
+        x = [t_steps.max(), t_steps.max()],
         y = [-0.1*abs_max, 1.2*abs_max],
         mode = "lines",
         line = dict(color = ZRLCOL, width = ZRLWIDTH),
         zorder = -1
     ), row = 1, col = 1)
+    
+    fig.add_shape(row = 1, col = 1, # static window box
+        type = "rect",
+        x0 = tstr_2_sec(static_window[0]), y0 = -0.05*abs_max,
+        x1 = tstr_2_sec(static_window[1]), y1 = 1.05*abs_max,
+        layer = "below",
+        line = dict(width = 0),
+        fillcolor = "rgba(144, 213, 255, 0.33)"
+        
+    )
     
     fig.add_trace(go.Scatter( # point scatter x-y
         x = hs[:, 0, 2],
@@ -186,14 +160,15 @@ def plot_results_multi(hs):
         marker = dict(color = MRKCOL, symbol = "circle", size = 3),
     ), row = 1, col = 2)
     
-    fig.add_shape(row = 1, col = 2,
+    fig.add_shape(row = 1, col = 2, # outer circle
         type = "circle", 
         x0 = -abs_max, y0 = -abs_max,
         x1 =  abs_max, y1 =  abs_max,
         layer = "below",
         line = dict(color = GRDCOL, width = GRDWIDTH)  
     )
-    fig.add_shape(row = 1, col = 2,
+    
+    fig.add_shape(row = 1, col = 2, # inner circle
         type = "circle", 
         x0 = -abs_max/2, y0 = -abs_max/2,
         x1 =  abs_max/2, y1 =  abs_max/2,
@@ -203,16 +178,17 @@ def plot_results_multi(hs):
     )
     
     # subplot 1 ----------------------------------------------------------------
+    n_tix = 6
     fig.update_xaxes( row = 1, col = 1,
-        range = [-0.04*x_steps.max(), 1.04*x_steps.max()],
+        range = [-0.04*t_steps.max(), 1.04*t_steps.max()],
         showgrid = True,
         zeroline = True,
         gridcolor = GRDCOL,
         zerolinecolor = ZRLCOL,
         gridwidth = GRDWIDTH,
         zerolinewidth = ZRLWIDTH,
-        tickvals = np.linspace(x_steps.min(), x_steps.max(), 6),
-        ticktext = ["00:00:00", "00:01:00", "00:02:00", "00:03:00", "00:04:00", "00:05:00"],
+        tickvals = np.linspace(t_steps.min(), t_steps.max(), n_tix),
+        ticktext = [sec_2_tstr(s) for s in np.linspace(0, ftot/fpsc, n_tix)],
     )
     
     fig.update_yaxes(row = 1, col = 1,
@@ -255,13 +231,10 @@ def plot_results_multi(hs):
         tickvals = np.linspace(-abs_max, abs_max, 5)
     )
     
-    
-    
-    
     # general layout -----------------------------------------------------------
     fig.update_layout(
         title = dict(
-            text = "plot for: <b>vid_xxx_asdfasdfdasf_asdfasdfdsa_000092345_éélkjélkjélkj_asdfasfdasf-asdfas.mp4</b>", 
+            text = f"plot for: <b>{vidname}</b>", 
             x = 0.015, y = 0.92, xref = "container", yref = "container", xanchor = "left", yanchor="top",
             font_size = 20),
         paper_bgcolor = BKGCOL,
@@ -274,21 +247,90 @@ def plot_results_multi(hs):
     )
     
     fig.add_annotation(
-        text = "<b>|(x, y)| - move. [px]</b>", font_size = 16, textangle = -90,
+        text = "<b>|x, y| movement [px]</b>", font_size = 16, textangle = -90,
         x = -0.07, y = 0.5, xref = "paper", yref = "paper", xanchor = "left", yanchor="middle",
         showarrow = False,
     )
     
     fig.add_annotation(
-        text = "<b> (x, y) - movem. [px]</b>", font_size = 16, textangle = -90,
+        text = "<b> (x, y) movement [px]</b>", font_size = 16, textangle = -90,
         x = 0.74, y = 0.5, xref = "paper", yref = "paper", xanchor = "left", yanchor="middle",
         showarrow = False,
     )
     
+    fig.show() # only for debug
+    
+    return fig_2_numpy(fig) 
+    
+def process_one_video(vid_path, detector, matcher):
+    
+    # get some video information
+    cap = cv.VideoCapture(vid_path)
+    fpsc = cap.get(cv.CAP_PROP_FPS)
+    ftot = cap.get(cv.CAP_PROP_FRAME_COUNT)
+    
+    # gather and calculate init frame (extract + blend)
+    n_init_frames = 10
+    l_init_seq = 0.05 # percent of video
+    init_frame_idx = np.linspace(0, l_init_seq*ftot, n_init_frames, dtype=np.int64)
+    init_frame_list = []
 
-    fig.show()  
+    for fidx in tqdm_bar(init_frame_idx, desc="constructing pivot frame", unit_scale=True):
+        cap.set(cv.CAP_PROP_POS_FRAMES, fidx)
+        ret, img = cap.read()
+        if ret is False:
+            raise ValueError("could not read frame") #TODO add some info here
+        else:
+            init_frame_list.append(cv.cvtColor(img, cv.COLOR_BGR2GRAY))    
+    pivot_frame = calc_median_image(init_frame_list)
+    
+    # do detection on initial frame
+    pivot_kps, pivot_dsc = detector.detectAndCompute(pivot_frame, None)
+        
+    # store homographies
+    homographies = []
+
+    # step through main video, for each interval frame
+    n_main_steps = 10
+    frame_idx = np.linspace(0, ftot-1, n_main_steps, dtype=np.int64)
+    
+    for fidx in tqdm_bar(frame_idx, desc="stepping through video  ", unit_scale=True):
+    
+        # grab frame and do keypoint detection
+        cap.set(cv.CAP_PROP_POS_FRAMES, fidx)
+        ret, img = cap.read()
+        if ret is False:
+            raise ValueError("could not read frame") #TODO add some info here
+        else:
+            img_gry = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+            kps_new, dsc_new = detector.detectAndCompute(img_gry, None)
+            
+            # do keypoint matching
+            matches = matcher.match(pivot_dsc, dsc_new)
+            matches = sorted(matches, key=lambda x: x.distance)
+            
+            # get actual coords of keypoints
+            pivot_p = np.float32([pivot_kps[m.queryIdx].pt for m in matches]).reshape(-1, 1, 2)
+            p_new = np.float32([kps_new[m.trainIdx].pt for m in matches]).reshape(-1, 1, 2)
+
+            # estimate homography w.r.t. init frame and store
+            H, mask = cv.findHomography(pivot_p, p_new, cv.RANSAC, 5)
+            homographies.append(H)
+            
+    # extract homography stats
+    hs = np.array(homographies)
+    
+    plot_img = plot_results(
+        hs, 
+        ftot, fpsc, 
+        vidname=os.path.basename(vid_path),
+        static_window=[sec_2_tstr(0), sec_2_tstr(l_init_seq*(ftot/fpsc))]
+    )
+    
+    return plot_img
     
 
+   
 
 
 
@@ -307,13 +349,12 @@ def main_func(argv=None):
     
     # ??? repeat for a whole list of videos? 
     
-    # process a video -> get homography at regular intervals
-    hs = process_one_video(cli_args.input_video_path, detector, matcher)
+    # process a video [get homography at regular intervals] -> return plot
+    plot_img = process_one_video(cli_args.input_video_path, detector, matcher)
     
-    # plot
-    plot_results_multi(hs)
+    # gather plots for all videos
     
-    # save results
+    # save results (stitch as one png)
     
     
     
