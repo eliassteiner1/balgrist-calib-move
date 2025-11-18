@@ -92,7 +92,7 @@ def process_one_video(vid_path, detector, matcher):
 
 
 def main_func(argv=None):
-    # parse input
+    # parse input [if no argv passed it will grab from the sys.argv, but if something is passed (run from script) then it will take this]
     cli_args = tyro.cli(CLIArgs, args=argv)
     
     # setup detector and maybe matcher (make params and keypoint type congfigurable)
