@@ -9,10 +9,11 @@ from   ..util.imgblending import calc_median_image
 from   ..util.imgblending import calc_mode_image
 from   ..util.imgblending import calc_kde_image
 
-
 from typing import Annotated
 import tyro
 
+
+ALLOWED_VIDEO_EXT = [".mp4"] # TODO: check what even works with cv2
 
 class KeypointDetector(Enum):
     AKAZE = cv.AKAZE_create()
@@ -46,8 +47,6 @@ class InitFrameBlending(Enum):
                 return calc_mode_image
             case "KDE":
                 return calc_kde_image
-
-ALLOWED_VIDEO_EXT = [".mp4"] # TODO: check what even works with cv2
 
 @dataclass
 class CLIArgs:
@@ -126,6 +125,7 @@ class CLIArgs:
         self._sanitize_static_window()
         self._sanitize_json()
         
+
 
 
 

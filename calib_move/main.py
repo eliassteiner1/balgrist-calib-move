@@ -10,7 +10,6 @@ import plotly.graph_objects as go
 from   plotly.subplots import make_subplots
 
 from   .core.config import CLIArgs
-from   .core.config import VidStats
 from   .core.plotting import plot_results
 
 from   .util.timestring import tstr_2_sec
@@ -21,8 +20,11 @@ from   .util.imgblending import calc_kde_image
 
 
 
-def process_one_video(vid_path, detector, matcher):
+def process_one_video(vid_path):
     
+    detector = cv.AKAZE_create()
+    matcher = cv.BFMatcher(cv.NORM_L2, crossCheck=True)
+        
     # get some video information
     cap = cv.VideoCapture(vid_path)
     fpsc = cap.get(cv.CAP_PROP_FPS)
@@ -87,29 +89,31 @@ def process_one_video(vid_path, detector, matcher):
     )
     
     return plot_img
-    
-
-
 
 def main_func(argv=None):
-    # parse input [if no argv passed it will grab from the sys.argv, but if something is passed (run from script) then it will take this]
+
+    # parse cl args and sanitize -----------------------------------------------
+    # if no argv, tyro it will grab from sys.argv, but if argv is passed (run from script) then it will take main argv
     cli_args = tyro.cli(CLIArgs, args=argv)
+    cli_args.sanitize()
     
-    # setup detector and maybe matcher (make params and keypoint type congfigurable)
-    detector = cv.AKAZE_create()
-    matcher = cv.BFMatcher(cv.NORM_L2, crossCheck=True)
+    # gather data --------------------------------------------------------------
+    # -> maybe just a VideoInfo object for each video and then just one list, plots also in there?
+    # glob all vids and read all windows 
+    vids = []
+    windows = []
+    plots = []
     
-    # ??? how to handle multiple file input?
+    # process all videos -------------------------------------------------------
+    # for all vids, process video -> returns plots
+    # append plots
+    plot_img = process_one_video(cli_args.input_video_path)
     
-    # ??? repeat for a whole list of videos? 
+    # stitch all plots together and save ---------------------------------------
+    ...
+ 
     
-    # process a video [get homography at regular intervals] -> return plot
-    plot_img = process_one_video(cli_args.input_video_path, detector, matcher)
-    
-    # gather plots for all videos
-    
-    # save results (stitch as one png)
-    
+
     
     
     

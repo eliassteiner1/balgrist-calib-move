@@ -3,7 +3,7 @@ import os
 
 
 @dataclass
-class VidStats:
+class VidInfo:
     path: str
     fpsc: float
     ftot: int
@@ -21,4 +21,5 @@ class VidStats:
     def sanitize(self):
         ...
         # check a few things [window withing total len, nonegative, min length, weird framerate, etc]
+        # TODO: sanitize, check if window within video
         
