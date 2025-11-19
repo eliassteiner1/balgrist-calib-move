@@ -4,7 +4,7 @@ import json
 from   glob import glob
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from   calib_move.util.generatejson import main_generate_json
+from   calib_move.core.generatejson import main_generate_json
 
 
 

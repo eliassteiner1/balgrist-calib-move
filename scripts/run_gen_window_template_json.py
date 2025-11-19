@@ -7,4 +7,4 @@ import calib_move
 
 
 if __name__ == "__main__":
-    calib_move.util.generatejson.generate_template_json()
+    calib_move.core.generatejson.generate_template_json()

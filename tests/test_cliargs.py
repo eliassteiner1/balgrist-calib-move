@@ -9,10 +9,10 @@ from   calib_move.core.cliargs import CLIArgs
 
 
 def main_synth(argv=None):
-    cli_args = tyro.cli(CLIArgs, args=argv)
-    cli_args.sanitize()
+    CLIARGS = tyro.cli(CLIArgs, args=argv)
+    CLIARGS.sanitize()
     
-    print(cli_args)
+    print(CLIARGS)
     
  
 if __name__ == "__main__":

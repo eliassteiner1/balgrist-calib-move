@@ -50,6 +50,7 @@ class InitFrameBlending(Enum):
 
 @dataclass(frozen=True)
 class CLIArgs:
+    # TODO: rename this stuff a bit
 
     input_video_path: Annotated[str, tyro.conf.arg(metavar="{<single-video-path>,<video-folder-path}")]
     

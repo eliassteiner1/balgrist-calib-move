@@ -5,6 +5,7 @@ from   numpy.typing import NDArray
 
 @dataclass
 class VideoContainer:
+    # TODO: rename this stuff a bit
     
     path: str
     fpsc: float

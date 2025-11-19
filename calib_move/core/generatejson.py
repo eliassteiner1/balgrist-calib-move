@@ -2,7 +2,7 @@ import os
 from   glob import glob
 import tyro
 
-from   ..core.cliargs import ALLOWED_VIDEO_EXT
+from   .cliargs import ALLOWED_VIDEO_EXT
 
 
 def generate_template_json(vid_folder_path: str):
@@ -29,4 +29,4 @@ def generate_template_json(vid_folder_path: str):
         file.write("\n".join(lines))
         
 def main_generate_json(argv=None):
-    cli_args_generate_json = tyro.cli(generate_template_json, args=argv) # also calls the function!
+    CLIARGS_GEN_JSON = tyro.cli(generate_template_json, args=argv) # also calls the function!
