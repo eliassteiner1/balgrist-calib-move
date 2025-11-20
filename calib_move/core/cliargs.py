@@ -20,9 +20,9 @@ ALLOWED_VIDEO_EXT = [".mp4"] # TODO: check what even works with cv2, maybe move 
 class KeypointDetector(Enum):
     # TODO: don't instantiate here!
     # TODO move to config
-    AKAZE = cv.AKAZE_create()
-    SIFT  = cv.SIFT_create()
-    ORB   = cv.ORB_create()
+    AKAZE = cv.AKAZE_create
+    SIFT  = cv.SIFT_create
+    ORB   = cv.ORB_create
     
     @property
     def v(self):
@@ -31,12 +31,16 @@ class KeypointDetector(Enum):
 class KeypointMatcher(Enum):
     # TODO: don't instantiate here!
     # TODO: move to config
-    BF_NORM_L2 = cv.BFMatcher(cv.NORM_L2, crossCheck=True) # good for SIFT, SURF
-    BF_NORM_HAMM = cv.BFMatcher(cv.NORM_HAMMING, crossCheck=True) #good for binary desc ORB, AKAZE, BRISK
+    BF_NORM_L2 = (cv.BFMatcher, (cv.NORM_L2, ), {"crossCheck": True})
+    BF_NORM_HAMM = (cv.BFMatcher, (cv.NORM_HAMMING, ), {"crossCheck": True})
+    
+    # BF_NORM_L2 = cv.BFMatcher(cv.NORM_L2, crossCheck=True) # good for SIFT, SURF
+    # BF_NORM_HAMM = cv.BFMatcher(cv.NORM_HAMMING, crossCheck=True) #good for binary desc ORB, AKAZE, BRISK
 
     @property
     def v(self):
-        return self.value
+        cls, args, kwargs = self.value
+        return cls(*args, **kwargs)
     
 class InitFrameBlending(Enum):
     # TODO: move to config

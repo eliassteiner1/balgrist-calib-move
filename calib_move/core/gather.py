@@ -12,7 +12,7 @@ from .cliargs import ALLOWED_VIDEO_EXT
 
 
 # TODO: use pathlib Path EVERYWHERE
-def subgather_single(CLIARGS: CLIArgs, vid_path: Path, window: str | dict) -> list[VideoContainer]:
+def subgather_single(vid_path: Path, window: str | dict) -> list[VideoContainer]:
 
     cap = cv.VideoCapture(vid_path)
     
@@ -51,7 +51,6 @@ def subgather_single(CLIARGS: CLIArgs, vid_path: Path, window: str | dict) -> li
         ftot=cap.get(cv.CAP_PROP_FRAME_COUNT),
         static_window=window_sec,
     )
-    vid.sanitize(CLIARGS) #TODO: fuck, can remove it here, donig already in main hahah
     cap.release()
     
     return [vid]
@@ -61,7 +60,7 @@ def subgather_multi(CLIARGS: CLIArgs, window: str | dict) -> list[VideoContainer
     videos = []
     videos_paths = [Path(vd) for xt in ALLOWED_VIDEO_EXT for vd in CLIARGS.input_video_path.glob(f"*{xt}")]
     for vid_path in videos_paths:
-        videos += subgather_single(CLIARGS, vid_path, window)
+        videos += subgather_single(vid_path, window)
 
     return videos
 
@@ -75,7 +74,7 @@ def gather_videos(CLIARGS: CLIArgs) -> list[VideoContainer]:
         # window string --------------------------------------------------------
         else:
             window = CLIARGS.static_window
-        videos = subgather_single(CLIARGS, CLIARGS.input_video_path, window)      
+        videos = subgather_single(CLIARGS.input_video_path, window)      
     
     # video folder -----------------------------------------------------------------------------------------------------
     else:

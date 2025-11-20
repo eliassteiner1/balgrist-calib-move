@@ -26,7 +26,10 @@ def generate_static_frame(CLIARGS: CLIArgs, video: VideoContainer, fidx: list[in
 
 def calculate_homographies(CLIARGS: CLIArgs, video: VideoContainer, static_frame: NDArray[np.uint8], fidx: list[int]):
     
-    kps_0, dsc_0 = CLIARGS.detector.v.detectAndCompute(static_frame, None) # keypoints of static reference frame
+    detector = CLIARGS.detector.v()
+    matcher = CLIARGS.matcher.v()
+    
+    kps_0, dsc_0 = detector.detectAndCompute(static_frame, None) # keypoints of static reference frame
     
     ho_arrays = []
     ho_errors = []
@@ -41,10 +44,10 @@ def calculate_homographies(CLIARGS: CLIArgs, video: VideoContainer, static_frame
             frame_gry = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
             
             # keypoint detection on current frame
-            kps_f, dsc_f = CLIARGS.detector.v.detectAndCompute(frame_gry, None)
+            kps_f, dsc_f = detector.detectAndCompute(frame_gry, None)
             
             # match with keypoints from static frame
-            matches = CLIARGS.matcher.v.match(dsc_0, dsc_f)
+            matches = matcher.match(dsc_0, dsc_f)
             matches = sorted(matches, key=lambda x: x.distance) # sort by descriptor distance (better match first)
             
             # extract only the (x, y) points from the keypoints
