@@ -1,17 +1,18 @@
 import numpy as np
 from   numpy.typing import NDArray
 import cv2 as cv
-from   tqdm import tqdm as tqdm_bar
 
 from .cliargs import CLIArgs
 from .videocontainer import VideoContainer
+
+from ..util.output import pbar
 
 
 def generate_static_frame(CLIARGS: CLIArgs, video: VideoContainer, fidx: list[int]):
     
     cap = cv.VideoCapture(video.path)
     frame_coll = []
-    for fi in tqdm_bar(fidx, desc=f"static frame ({video.name})", unit_scale=True):
+    for fi in pbar(fidx, desc=f"static frame {video.name}"):
         cap.set(cv.CAP_PROP_POS_FRAMES, fi)
         ret, frame = cap.read()
         if ret is False:
@@ -31,7 +32,7 @@ def calculate_homographies(CLIARGS: CLIArgs, video: VideoContainer, static_frame
     ho_errors = []
     
     cap = cv.VideoCapture(video.path)
-    for fi in tqdm_bar(fidx, desc=f"homographies ({video.name})", unit_scale=True):
+    for fi in pbar(fidx, desc=f"homographies {video.name}"):
         cap.set(cv.CAP_PROP_POS_FRAMES, fi)
         ret, frame = cap.read()
         if ret is False:

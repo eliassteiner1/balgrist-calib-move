@@ -7,7 +7,6 @@ import einops as eo
 import numpy as np
 import cv2 as cv
 import tyro
-from   tqdm import tqdm as tqdm_bar
 
 from .core.cliargs import CLIArgs
 from .core.gather import gather_videos
@@ -16,6 +15,8 @@ from .core.plotting import plot_video_ho
 
 from .config.plotconfig import PlotConfig
 from .config.root import ROOT
+
+from .util.output import pbar
 
 
 def main_func(argv=None):
@@ -36,7 +37,7 @@ def main_func(argv=None):
 
     # plot homographies of all videos ------------------------------------------
     plots = []
-    for vd in tqdm_bar(videos, desc="plot videos  (all)", unit_scale=True):
+    for vd in pbar(videos, desc="plot videos (all)"):
         plots += plot_video_ho(CLIARGS, vd, PlotConfig)
     
     # stitch all plots together and save ---------------------------------------

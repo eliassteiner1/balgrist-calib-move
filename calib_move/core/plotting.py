@@ -19,7 +19,6 @@ def plot_video_ho(CLIARGS: CLIArgs, video: VideoContainer, CFG: PlotConfig) -> l
     dat_abs = np.where(dat_msk, np.nan, np.sqrt(dat_x**2 + dat_y**2))
     dat_abs_max = max(np.nanmax(dat_abs), CFG.MIN_YRANGE_AUTOMAX)
     
-    
     fig = make_subplots(
         rows=1, cols=2, 
         column_widths=CFG.SUBPLOT_COLWIDTHS, horizontal_spacing=CFG.SUBPLOT_SPACING,
