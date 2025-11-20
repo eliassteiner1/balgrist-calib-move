@@ -153,8 +153,16 @@ class CLIArgs:
             raise ValueError(f"invalid static_window, neither json nor valid window! (got {self.static_window})")
 
     def sanitize(self) -> None:
+        
+        if self.n_init_steps <= 1:
+            raise ValueError(f"{self.n_init_steps=} too small! (minimum 2)")
+        
+        if self.n_main_steps <= 1:
+            raise ValueError(f"{self.n_main_steps=} too small! (minimum 2)")
+        
         self._sanitize_input_video_path()
         self._sanitize_static_window()
+        
         
 
 

@@ -14,7 +14,7 @@ if __name__ == "__main__":
         # "--static-window", "H:/code_elias/balgrist-calib-move/tests/test_static_window_template.json"
         "--static-window", "START-00:03:00",
         "--n_init-steps", "3",
-        "--n_main-steps", "4",
+        "--n_main-steps", "10",
     ]
     main_func(argv=argv)
 []
