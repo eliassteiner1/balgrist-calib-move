@@ -1,6 +1,5 @@
-
-
 class PlotConfig():
+    # TODO add some description
     
     TXTCOL = "rgba(20, 20, 20, 1.0)"
     BKGCOL = "rgba(255, 255, 255, 0.0)"

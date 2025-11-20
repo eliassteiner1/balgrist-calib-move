@@ -1,6 +1,8 @@
 {
     "some_very_long_video_name_1.mp4": "00:02:00-00:03:00",
-    "vid_2.mp4": "00:02:00-00:04:00",
-    "vid_3.mp4": "00:02:00-00:05:00"
+    "vid_2.mp4": "START-00:04:00",
+    "vid_3.mp4": "00:02:00-END",
+
+    "someuselesskey": "asdf-asdf"
 
 }

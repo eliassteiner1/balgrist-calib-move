@@ -47,6 +47,7 @@ def subgather_single(input_video_path: str, static_window: str | dict) -> list[V
     else: # should not occur if sanitization holds
         raise TypeError("got neither valid string nor dict for static_window in subgather_single")
 
+    # TODO sanizize time windows here!
     vid = VideoContainer(
         path=input_video_path,
         fpsc=cap.get(cv.CAP_PROP_FPS),

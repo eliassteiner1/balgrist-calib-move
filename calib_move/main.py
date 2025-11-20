@@ -10,7 +10,7 @@ import tyro
 
 from .core.cliargs import CLIArgs
 from .core.gather import gather_videos
-from .core.process_homographies import process_video_ho
+from .core.homographies import process_video_ho
 from .core.plotting import plot_video_ho
 
 from .config.plotconfig import PlotConfig

@@ -1,5 +1,6 @@
 from   dataclasses import dataclass, field
 import os
+from   pathlib import Path
 from   numpy.typing import NDArray
 
 
@@ -7,7 +8,7 @@ from   numpy.typing import NDArray
 class VideoContainer:
     # TODO: rename this stuff a bit
     
-    path: str #TODO: make this path object (any anywhere else)
+    path: Path #TODO: make this path object (any anywhere else)
     fpsc: float
     ftot: int
     
@@ -28,4 +29,5 @@ class VideoContainer:
         ...
         # check a few things [window withing total len, nonegative, min length, weird framerate, etc]
         # TODO: sanitize, check if window within video
+        # also check if window numbers are not inverted!
         

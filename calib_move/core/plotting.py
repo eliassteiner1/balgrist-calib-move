@@ -7,7 +7,7 @@ from   ..util.timestring import sec_2_tstr
 from .cliargs import CLIArgs
 from .videocontainer import VideoContainer
 from ..config.plotconfig import PlotConfig
-from ..util.plots import fig_2_numpy
+from ..util.plot import fig_2_numpy
 
 
 def plot_video_ho(CLIARGS: CLIArgs, video: VideoContainer, CFG: PlotConfig) -> list[NDArray]:
