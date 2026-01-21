@@ -2,30 +2,29 @@
 <h1>calib-move</h1>
 </div>
 
-A simple utility package for determining whether a supposedly static camera moved from a video. Can process multiple videos at in one batch and generate plots for each video to quickly overview the results.
+A simple utility package for determining whether a supposedly static camera moved by analyzing a video. Can process multiple videos in one batch and generate plots for each video to quickly overview the results.
 
-## **🔍︎ Contents**
-- movement analysis (main): read in a single video or a folder of videos and process each video to analyize whether the camera has moved with respect to a certain static part of the video (has to be specified). A robust reference image is constructed by blending multiple frames form the static window together to remove moving elements. Then a homography to all the other parts of the video is estimate with respect to the reference frame by using commony keypoint detection and matching techniques (SIFT, ORB, AKAZE). The linear part of this homography is used to detect small-scale movement of the static background in the camera image.
-- generating template json (helper function): the static window for multiple videos can be specified using a json file. to generate a template for a certain folder containing multiple videos use this function
+## **📦 Contents**
+- **Movement analysis (main)**: Processes single videos or batch folders (of videos) to detect camera movement relative to a specified static region. Creates a robust reference image by blending frames from the static window to filter out moving objects. Uses keypoint detection/matching (SIFT, ORB, AKAZE) with geometric filtering to robustly estimating movement between the reference and other frames. Works only when a static background is visible throughout a video.
+- **Template JSON generator (helper)**: The static window for multiple videos (of a folder) can be specified by using a json file. To generate a template for such a file, use this function.
 
 
 ## **🏗️ Installation**
 
 ### **1. clone the repository**
 ```
-mkdir <repo-folder>
-cd <repo-folder>
-gitclone https://github.com/eliassteiner1/balgrist-calib-move.git
-```
-
-### **2.a use locally (from folder)**
-
-go to folder where the repository is cloned
-```
+git clone https://github.com/eliassteiner1/balgrist-calib-move.git
 cd <repo-folder>
 ```
 
-install reqirements
+### **2.a use locally (without installing)**
+
+go to folder where the repository is cloned:
+```
+cd <repo-folder>
+```
+
+install reqirements:
 ```
 pip install requirements.txt
 ```
@@ -39,16 +38,16 @@ python <repo-folder>/scripts/run_generate_template_json.py
 
 ### **2.b install with pip**
 
-go to folder where the repository is cloned
+go to folder where the repository is cloned:
 ```
 cd <repo-folder>
 ```
 
-install with pip. (using `-e` installs in editable mode, so that changes in the source files are immediately updated when running scripts)
+install with pip:
 ```
-pip install .
 pip install -e .
 ```
+> Note: using `-e` installs in editable mode, so that changes in the source files are immediately updated when running scripts.
 
 this installs two new console commands to the environment
 ```
@@ -61,9 +60,12 @@ calib-move-generate-template-json
 ### **run movement analysis (main)**
 use either `calib-move-run` from the command line (when installed) or directly run `python <repo-folder>/scripts/run.py` (when running from source). In both cases, multiple arguments can be given:
 
+
 - `-h`: prints a help window with info regarding the command arguments
 
-- `--input-video-path <path>` **(required)**: specify the path to either a single valid video file or a folder containing at least one video file to be processed
+- `--input-path <path>` **(required)**: specify the path to either a single valid video file or a folder containing at least one video file to be processed.
+
+- `--output-path <path>` **(required)**: path to the location where the result plots should be saved.
 
 - `--static-window <string or path>` **(required)**: specify the timestamps for the static window in the video
 
@@ -75,7 +77,7 @@ use either `calib-move-run` from the command line (when installed) or directly r
 
     - `hh:mm:ss-hh:mm:ss`: represents a static window starting and ending at specific timestamps
 
-  - `<json path>` when loading multiple videos and a different static window should be used for every one, a json file can be used to specify them. the file is a single dict, containing a key (video name) for each video that is specified in `--input-video-path`. The values of the dict are the same timestamp-strings as before. A template of this file can be gnerated using the helper function from the next section! for example:
+  - `<json path>` when loading multiple videos and a different static window should be used for every one, a json file can be used to specify them. the file is a single dict, containing a key (video name) for each video that is specified in `--input-video-path`. The values of the dict are the same timestamp-strings as before. A template of this file can be generated by using the helper function from the next section! for example:
     ```
     {
       "video_1.mp4": "00:02:21-00:05:00",
@@ -84,12 +86,14 @@ use either `calib-move-run` from the command line (when installed) or directly r
       ...
     }
     ```
-    
-- `--n-init-steps`: number of equally spaced steps (in the static window) for which frames are extracted and combined to form one good reference image without moving elements. the homography is estimated relative to this static image for all other parts of the video.
+
+- `--plot-name`: base name for the output png file (e.g. <plot_name>.png).    
+
+- `--n-init-steps`: number of equally spaced steps (in the static window) for which frames are extracted and combined to form one good reference image without moving elements. The movement is always estimated relative to this static image for all other parts of the video.
 
 - `--init-frame-blending` {MEDIAN,MODE,KDE}: method for combining multiple frames (from the static window) to ideally remove moving elements. 
 
-- `--n-main-steps`: number of equally spaced steps (in the input video) for which the homography is estimated relative to the static frame.
+- `--n-main-steps`: number of equally spaced steps (in the input video) for which the movement is estimated relative to the static frame.
 
 - `--detector` {AKAZE,SIFT,ORB}: cv2 keypoint detector type. 
 
@@ -111,14 +115,23 @@ use either `calib-move-generate-template-json` from the command line (when insta
     ```
   
 ## **✨ Output**
-The main analysis will save a plot for all the specified and processed videos in the `<repo-folder>/outputs` folder. On the left side, this plot shows the absolute linear movement of the image over the entire video-timeline (static reference window in blue). On the right side, a scatterplot shows the individual x-y movement for each timestep. 
+The main movement analysis will save a plot for each processed video in the `--output-path` directory. This plot condenses all the extracted information onto one graph:
 
 <p align="center">
-  <img src="outputs/plot_results.png" width="800" alt="example plot output" />
+  <img src="outputs/example_plot.png" width="800" alt="example plot output" />
 </p>
+
+- **Movement**: in red, the estimatad camera movement in pixels is plotted (with respect to the static window). This is (an estimate of) the average absolute value of the motion at each pixel (no directionality). 
+
+- **Confidence Score**: in green, the confidence very roughly measures how likely an estimate is to be true (values below a certain threshold are seen as errors). The score is obtained by comparing the movement estimation of a few different frames close to the respective timestamp and looking at how well these values agree with each other.
+
+- **Errors**: faint red stripes, these blocks are drawn whenever no motion coulb be estimated. The reason can be either a low confidence score or failing to match keypoints (too few keypoints, too few matches).
+
+- **Static Window**: in blue, this bar indicates the section of the video that was specified as the static window and is used to generate the referenc image. All motion is estimated relative to this reference.
+
+
 
 ## **🎫 License**
 This project is licensed under the **MIT License**. See the [LICENSE](https://github.com/eliassteiner1/balgrist-calib-move/blob/main/LICENSE) file for details.
 
-## **🤝 Acknowledgements**
-ToDo
+

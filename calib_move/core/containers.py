@@ -23,7 +23,7 @@ class CLIArgs:
     """ path to one video or a folder containing at least one video which should be analyized. """
     
     output_path: Path
-    """ path to the location where the results should be saved. """
+    """ path to the location where the result plots should be saved. """
     
     static_window: Annotated[
         str, tyro.conf.arg(metavar="{<START-hh:mm:ss>,<hh:mm:ss-END>,<hh:mm:ss-hh:mm:ss>,<json-path>}",)
